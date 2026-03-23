@@ -1,0 +1,257 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+#app { display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem 1.5rem; gap: 1.2rem; font-family: var(--font-sans); }
+h1 { font-size: 22px; font-weight: 500; color: var(--color-text-primary); text-align: center; }
+.sub { font-size: 14px; color: var(--color-text-secondary); text-align: center; }
+#wheel-wrap { position: relative; width: 320px; height: 320px; cursor: pointer; user-select: none; }
+#pointer { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); z-index: 10; }
+#spin-btn { background: var(--color-text-primary); color: var(--color-background-primary); border: none; border-radius: var(--border-radius-lg); padding: 12px 40px; font-size: 15px; font-weight: 500; cursor: pointer; font-family: var(--font-sans); transition: opacity 0.15s; }
+#spin-btn:hover { opacity: 0.8; }
+#spin-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+#result-box { min-height: 64px; text-align: center; }
+#result-label { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px; }
+#result-amount { font-size: 36px; font-weight: 500; color: var(--color-text-primary); }
+#jacket-area { display: none; flex-direction: column; align-items: center; gap: 8px; }
+#jacket-svg { width: 140px; height: 160px; animation: popIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+@keyframes popIn { from { transform: scale(0.2) rotate(-10deg); opacity: 0; } to { transform: scale(1) rotate(0deg); opacity: 1; } }
+#av-badge { background: #C41E1E; color: #fff; border-radius: 20px; padding: 5px 18px; font-size: 13px; font-weight: 500; letter-spacing: 0.03em; }
+#nugget-btn {
+  background: none; border: none; cursor: pointer; padding: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+#nugget-btn svg { width: 52px; height: 52px; transition: transform 0.2s; }
+#nugget-btn:hover svg { transform: scale(1.12) rotate(-5deg); }
+#nugget-label { font-size: 11px; color: var(--color-text-tertiary); font-family: var(--font-sans); letter-spacing: 0.04em; }
+.confetti-piece { position: absolute; pointer-events: none; width: 8px; height: 8px; border-radius: 2px; animation: fall linear forwards; }
+@keyframes fall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(300px) rotate(720deg); opacity: 0; } }
+#confetti-host { position: absolute; top: 0; left: 0; width: 320px; height: 0; overflow: visible; pointer-events: none; z-index: 20; }
+</style>
+
+<div id="app">
+  <div>
+    <h1>Pay Rise Wheel of Fortune</h1>
+    <p class="sub">Spin to find out what you deserve</p>
+  </div>
+
+  <div id="jacket-area">
+    <div id="av-badge">AV MODE ACTIVATED</div>
+    <svg id="jacket-svg" viewBox="0 0 140 160" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="70,10 30,35 10,30 5,80 30,75 30,155 110,155 110,75 135,80 135,30 110,35" fill="#C41E1E" stroke="#8B0000" stroke-width="2"/>
+      <polygon points="70,10 30,35 45,155 70,140" fill="#A01818" stroke="#8B0000" stroke-width="1"/>
+      <polygon points="70,10 110,35 95,155 70,140" fill="#A01818" stroke="#8B0000" stroke-width="1"/>
+      <polygon points="5,30 10,80 30,75 30,35" fill="#8B0000" stroke="#700000" stroke-width="1"/>
+      <polygon points="135,30 130,80 110,75 110,35" fill="#8B0000" stroke="#700000" stroke-width="1"/>
+      <rect x="62" y="10" width="16" height="50" rx="2" fill="#C8C8C8" stroke="#999" stroke-width="0.5"/>
+      <rect x="62" y="10" width="16" height="8" rx="2" fill="#E8E8E8" stroke="#bbb" stroke-width="0.5"/>
+      <rect x="10" y="50" width="20" height="8" rx="3" fill="#D4AF37" stroke="#B8860B" stroke-width="0.5"/>
+      <rect x="110" y="50" width="20" height="8" rx="3" fill="#D4AF37" stroke="#B8860B" stroke-width="0.5"/>
+      <rect x="28" y="100" width="14" height="10" rx="2" fill="#D4AF37" stroke="#B8860B" stroke-width="0.5"/>
+      <rect x="98" y="100" width="14" height="10" rx="2" fill="#D4AF37" stroke="#B8860B" stroke-width="0.5"/>
+      <text x="70" y="120" text-anchor="middle" font-size="10" font-weight="500" fill="#FFD700" font-family="sans-serif">AV</text>
+    </svg>
+  </div>
+
+  <div id="wheel-wrap" onclick="spinWheel()">
+    <svg id="pointer" width="28" height="38" viewBox="0 0 28 38">
+      <polygon points="14,2 26,36 2,36" fill="#C41E1E" stroke="#8B0000" stroke-width="1.5"/>
+    </svg>
+    <canvas id="wheel-canvas" width="320" height="320"></canvas>
+    <div id="confetti-host"></div>
+  </div>
+
+  <button id="spin-btn" onclick="spinWheel()">Spin the wheel</button>
+
+  <div id="result-box">
+    <div id="result-label"></div>
+    <div id="result-amount"></div>
+  </div>
+
+  <button id="nugget-btn" onclick="activateAV()" title="are you in AV?">
+    <svg viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="26" cy="30" rx="18" ry="14" fill="#B8860B"/>
+      <ellipse cx="26" cy="28" rx="18" ry="14" fill="#D4AF37"/>
+      <ellipse cx="26" cy="27" rx="16" ry="12" fill="#F0C040"/>
+      <ellipse cx="26" cy="26" rx="14" ry="10" fill="#FFD700"/>
+      <ellipse cx="22" cy="22" rx="4" ry="3" fill="#FFE878" opacity="0.7"/>
+      <ellipse cx="31" cy="24" rx="2" ry="1.5" fill="#FFE878" opacity="0.5"/>
+      <polygon points="20,14 26,4 32,14 38,10 34,20 26,18 18,20 14,10" fill="#D4AF37" stroke="#B8860B" stroke-width="0.5"/>
+      <polygon points="26,4 29,12 26,10 23,12" fill="#FFD700"/>
+      <polygon points="38,10 35,18 32,14 35,13" fill="#FFD700"/>
+      <polygon points="14,10 17,18 20,14 17,13" fill="#FFD700"/>
+    </svg>
+    <span id="nugget-label">are you in AV?</span>
+  </button>
+</div>
+
+<script>
+const SEGMENTS_NORMAL = [
+  { label: '$0',      amount: 0,     color: '#5F5E5A' },
+  { label: '$1,000',  amount: 1000,  color: '#185FA5' },
+  { label: '$3,500',  amount: 3500,  color: '#0F6E56' },
+  { label: '$0',      amount: 0,     color: '#5F5E5A' },
+  { label: '$7,500',  amount: 7500,  color: '#993C1D' },
+  { label: '$500',    amount: 500,   color: '#534AB7' },
+  { label: '$12,000', amount: 12000, color: '#854F0B' },
+  { label: '$0',      amount: 0,     color: '#5F5E5A' },
+  { label: '$18,500', amount: 18500, color: '#993556' },
+  { label: '$25,000', amount: 25000, color: '#3B6D11' },
+];
+
+const SEGMENTS_AV = [
+  { label: '$30,000', amount: 30000, color: '#C41E1E' },
+];
+
+let segments = SEGMENTS_NORMAL;
+let currentAngle = 0;
+let isSpinning = false;
+let avMode = false;
+
+const canvas = document.getElementById('wheel-canvas');
+const ctx = canvas.getContext('2d');
+
+function drawWheel(angle) {
+  const cx = 160, cy = 160, r = 150;
+  ctx.clearRect(0, 0, 320, 320);
+  const n = segments.length;
+  const arc = (2 * Math.PI) / n;
+
+  segments.forEach((seg, i) => {
+    const start = angle + i * arc - Math.PI / 2;
+    const end = start + arc;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, start, end);
+    ctx.closePath();
+    ctx.fillStyle = seg.color;
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = avMode ? 0 : 2;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(start + arc / 2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#fff';
+    ctx.font = avMode ? 'bold 28px sans-serif' : '500 12px sans-serif';
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 4;
+    ctx.fillText(seg.label, r - 12, 6);
+    ctx.restore();
+  });
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, 24, 0, 2 * Math.PI);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.strokeStyle = '#ddd';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.fillStyle = '#444';
+  ctx.font = '500 9px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.shadowBlur = 0;
+  ctx.fillText('SPIN', cx, cy + 3);
+}
+
+function easeOut(t) { return 1 - Math.pow(1 - t, 4); }
+
+function spinWheel() {
+  if (isSpinning) return;
+  isSpinning = true;
+  document.getElementById('spin-btn').disabled = true;
+  document.getElementById('result-label').textContent = '';
+  document.getElementById('result-amount').textContent = '';
+
+  const n = segments.length;
+  const arc = (2 * Math.PI) / n;
+  let winIndex, spinAngle;
+
+  if (avMode) {
+    winIndex = 0;
+    spinAngle = Math.PI * 2 * 6;
+  } else {
+    winIndex = Math.floor(Math.random() * n);
+    const targetAngle = (2 * Math.PI) - (winIndex * arc) - arc / 2;
+    spinAngle = (Math.PI * 2 * (5 + Math.random() * 3)) + ((targetAngle - currentAngle % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2));
+  }
+
+  const duration = avMode ? 2200 : 4000 + Math.random() * 1500;
+  const startAngle = currentAngle;
+  const totalAngle = currentAngle + spinAngle;
+  const start = performance.now();
+
+  function animate(now) {
+    const t = Math.min((now - start) / duration, 1);
+    currentAngle = startAngle + spinAngle * easeOut(t);
+    drawWheel(currentAngle);
+    if (t < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      currentAngle = totalAngle;
+      isSpinning = false;
+      document.getElementById('spin-btn').disabled = false;
+      showResult();
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+function showResult() {
+  const n = segments.length;
+  const arc = (2 * Math.PI) / n;
+  const norm = ((currentAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  const rel = (Math.PI / 2 - norm + Math.PI * 2) % (Math.PI * 2);
+  const idx = Math.floor(rel / arc) % n;
+  const seg = segments[idx];
+  const label = document.getElementById('result-label');
+  const amount = document.getElementById('result-amount');
+
+  if (seg.amount === 0) {
+    label.textContent = 'Better luck next review cycle...';
+    amount.textContent = '$0';
+    amount.style.color = 'var(--color-text-secondary)';
+  } else {
+    label.textContent = avMode ? 'AV Special — congratulations!' : 'Your pay rise is:';
+    amount.textContent = '$' + seg.amount.toLocaleString();
+    amount.style.color = avMode ? '#C41E1E' : 'var(--color-text-primary)';
+    launchConfetti();
+  }
+}
+
+function activateAV() {
+  if (avMode) return;
+  avMode = true;
+  segments = SEGMENTS_AV;
+  currentAngle = 0;
+
+  document.getElementById('nugget-btn').style.display = 'none';
+  document.getElementById('jacket-area').style.display = 'flex';
+  document.getElementById('result-label').textContent = '';
+  document.getElementById('result-amount').textContent = '';
+  drawWheel(currentAngle);
+}
+
+function launchConfetti() {
+  const host = document.getElementById('confetti-host');
+  const colors = ['#C41E1E','#D4AF37','#FFD700','#185FA5','#0F6E56','#993C1D','#534AB7'];
+  for (let i = 0; i < 55; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.cssText = `
+      left:${Math.random()*300}px;
+      top:0;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      animation-duration:${1.4+Math.random()*1.2}s;
+      animation-delay:${Math.random()*0.4}s;
+      transform:rotate(${Math.random()*360}deg);
+    `;
+    host.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+  }
+}
+
+drawWheel(0);
+</script>
