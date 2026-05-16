@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Apple TV" />
+<meta name="theme-color" content="#000000" />
+<title>Apple TV Remote</title>
+<style>
+  :root { --bg:#000; --panel:#1c1c1e; --panel2:#2c2c2e; --txt:#fff; --dim:#8e8e93; --accent:#0a84ff; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; overscroll-behavior:none; }
+  body { display:flex; flex-direction:column; padding:max(16px,env(safe-area-inset-top)) 18px max(20px,env(safe-area-inset-bottom)); }
+
+  header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  header h1 { font-size:17px; font-weight:600; margin:0; }
+  .status { font-size:12px; color:var(--dim); }
+  .status.ok { color:#30d158; }
+  .status.err { color:#ff453a; }
+  .gear { background:none; border:none; color:var(--txt); font-size:22px; padding:6px; }
+
+  .nowplaying { background:var(--panel); border-radius:14px; padding:12px 14px; margin-bottom:18px; min-height:54px; display:flex; flex-direction:column; justify-content:center; }
+  .np-title { font-size:15px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .np-sub { font-size:12px; color:var(--dim); margin-top:2px; }
+
+  .pad { position:relative; width:min(78vw,320px); aspect-ratio:1; margin:0 auto 22px; border-radius:50%;
+    background:radial-gradient(circle at 50% 40%, var(--panel2), var(--panel)); box-shadow:inset 0 0 0 1px #ffffff14; }
+  .pad .dir { position:absolute; color:var(--dim); font-size:26px; background:none; border:none; padding:18px; }
+  .pad .up { top:0; left:50%; transform:translateX(-50%); }
+  .pad .down { bottom:0; left:50%; transform:translateX(-50%); }
+  .pad .left { left:0; top:50%; transform:translateY(-50%); }
+  .pad .right { right:0; top:50%; transform:translateY(-50%); }
+  .pad .ok { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:44%; height:44%; border-radius:50%; background:#3a3a3c; border:none; color:#fff; font-size:14px; font-weight:600; }
+  .pressed { background:var(--accent)!important; color:#fff!important; }
+
+  .row { display:flex; gap:12px; margin-bottom:14px; }
+  .btn { flex:1; background:var(--panel); border:none; color:var(--txt); padding:16px 0; border-radius:12px;
+    font-size:15px; font-weight:500; display:flex; align-items:center; justify-content:center; }
+  .btn:active { background:var(--panel2); }
+  .btn .sym { font-size:20px; }
+  .btn.wide { flex:2; }
+
+  /* settings sheet */
+  .sheet { position:fixed; inset:0; background:rgba(0,0,0,.92); display:none; flex-direction:column;
+    padding:max(24px,env(safe-area-inset-top)) 22px max(24px,env(safe-area-inset-bottom)); z-index:10; overflow:auto; }
+  .sheet.show { display:flex; }
+  .sheet h2 { font-size:20px; margin:0 0 4px; }
+  .sheet p { color:var(--dim); font-size:13px; margin:0 0 18px; }
+  .device { background:var(--panel); border-radius:12px; padding:14px; margin-bottom:10px; display:flex;
+    align-items:center; justify-content:space-between; }
+  .device small { color:var(--dim); display:block; margin-top:3px; }
+  .pill { background:var(--accent); color:#fff; border:none; padding:9px 16px; border-radius:20px; font-size:14px; font-weight:600; }
+  .pill.grey { background:var(--panel2); }
+  .pin { width:100%; font-size:30px; text-align:center; letter-spacing:10px; padding:14px;
+    background:var(--panel); border:1px solid #ffffff22; border-radius:12px; color:#fff; margin:14px 0; }
+  .closex { align-self:flex-end; background:none; border:none; color:var(--accent); font-size:16px; margin-bottom:10px; }
+  .msg { font-size:13px; margin-top:10px; min-height:18px; }
+  .msg.err { color:#ff453a; } .msg.ok { color:#30d158; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Apple&nbsp;TV</h1>
+    <span id="status" class="status">connecting…</span>
+    <button class="gear" onclick="openSheet()">⚙︎</button>
+  </header>
+
+  <div class="nowplaying">
+    <div class="np-title" id="npTitle">Not playing</div>
+    <div class="np-sub" id="npSub">—</div>
+  </div>
+
+  <div class="pad" id="pad">
+    <button class="dir up"   data-cmd="up">▲</button>
+    <button class="dir left" data-cmd="left">◀</button>
+    <button class="dir right"data-cmd="right">▶</button>
+    <button class="dir down" data-cmd="down">▼</button>
+    <button class="ok"       data-cmd="select">OK</button>
+  </div>
+
+  <div class="row">
+    <button class="btn" data-cmd="menu"><span class="sym">↩︎</span>&nbsp;Menu</button>
+    <button class="btn" data-cmd="home"><span class="sym">⊡</span>&nbsp;TV</button>
+  </div>
+
+  <div class="row">
+    <button class="btn" data-cmd="skip_backward"><span class="sym">⏪︎</span></button>
+    <button class="btn wide" data-cmd="play_pause"><span class="sym">⏯︎</span></button>
+    <button class="btn" data-cmd="skip_forward"><span class="sym">⏩︎</span></button>
+  </div>
+
+  <div class="row">
+    <button class="btn" data-cmd="volume_down"><span class="sym">🔉</span></button>
+    <button class="btn" data-cmd="volume_up"><span class="sym">🔊</span></button>
+    <button class="btn" data-cmd="turn_off"><span class="sym">⏻</span></button>
+  </div>
+
+  <!-- Settings / pairing -->
+  <div class="sheet" id="sheet">
+    <button class="closex" onclick="closeSheet()">Done</button>
+    <h2>Setup</h2>
+    <p>Scan your Wi-Fi for an Apple TV, then pair once.</p>
+    <button class="pill" id="scanBtn" onclick="scan()">Scan for Apple TV</button>
+    <div id="devices" style="margin-top:18px;"></div>
+
+    <div id="pinBox" style="display:none;">
+      <h2 style="margin-top:24px;">Enter PIN</h2>
+      <p id="pinHint">A code is shown on your Apple TV screen.</p>
+      <input class="pin" id="pinInput" inputmode="numeric" maxlength="4" placeholder="––––" />
+      <button class="pill" onclick="submitPin()">Submit</button>
+    </div>
+    <div class="msg" id="msg"></div>
+  </div>
+
+<script>
+const $ = s => document.querySelector(s);
+const status = $("#status");
+
+function setStatus(t, cls){ status.textContent = t; status.className = "status " + (cls||""); }
+function flash(el){ el.classList.add("pressed"); setTimeout(()=>el.classList.remove("pressed"),140); }
+
+async function send(cmd, el){
+  if (el) flash(el);
+  if (navigator.vibrate) navigator.vibrate(8);
+  try {
+    const r = await fetch("/api/command/" + cmd, { method:"POST" });
+    const d = await r.json();
+    if (!d.ok) setStatus(d.error || "error", "err"); else setStatus("connected", "ok");
+  } catch { setStatus("server offline", "err"); }
+}
+
+// Bind every button that has data-cmd
+document.querySelectorAll("[data-cmd]").forEach(b => {
+  b.addEventListener("click", () => send(b.dataset.cmd, b));
+});
+
+// Swipe gestures on the pad: swipe = direction, tap-center already handled by OK.
+let sx=0, sy=0;
+const pad = $("#pad");
+pad.addEventListener("touchstart", e => { sx=e.touches[0].clientX; sy=e.touches[0].clientY; }, {passive:true});
+pad.addEventListener("touchend", e => {
+  const dx=e.changedTouches[0].clientX-sx, dy=e.changedTouches[0].clientY-sy;
+  if (Math.hypot(dx,dy) < 28) return; // too small, treat as tap (button handles it)
+  if (Math.abs(dx) > Math.abs(dy)) send(dx>0 ? "right":"left");
+  else send(dy>0 ? "down":"up");
+}, {passive:true});
+
+// Now-playing polling
+async function poll(){
+  try {
+    const r = await fetch("/api/nowplaying");
+    const d = await r.json();
+    if (d.ok && d.available && (d.title || d.app)) {
+      $("#npTitle").textContent = d.title || d.app || "Playing";
+      const sub = [d.artist, d.album, d.app && ("· "+d.app), d.state]
+        .filter(Boolean).join("  ");
+      $("#npSub").textContent = sub || "—";
+      setStatus("connected", "ok");
+    } else if (d.ok) {
+      $("#npTitle").textContent = "Not playing";
+      $("#npSub").textContent = "—";
+      setStatus("connected", "ok");
+    } else {
+      setStatus(d.error || "not paired", "err");
+    }
+  } catch { setStatus("server offline", "err"); }
+}
+poll(); setInterval(poll, 4000);
+
+// ---- settings / pairing ----
+const sheet = $("#sheet");
+function openSheet(){ sheet.classList.add("show"); }
+function closeSheet(){ sheet.classList.remove("show"); $("#msg").textContent=""; }
+function msg(t, cls){ const m=$("#msg"); m.textContent=t; m.className="msg "+(cls||""); }
+
+let pairingId = null;
+
+async function scan(){
+  $("#scanBtn").textContent = "Scanning…";
+  $("#devices").innerHTML = "";
+  try {
+    const r = await fetch("/api/scan", { method:"POST" });
+    const d = await r.json();
+    $("#scanBtn").textContent = "Scan for Apple TV";
+    if (!d.ok) return msg(d.error, "err");
+    if (!d.devices.length) return msg("No Apple TV found on this network.", "err");
+    $("#devices").innerHTML = d.devices.map(dev => `
+      <div class="device">
+        <div><b>${dev.name}</b><small>${dev.address} ${dev.paired.length ? "· paired ✓":""}</small></div>
+        <button class="pill ${dev.paired.length?'grey':''}" onclick="beginPair('${dev.identifier}')">
+          ${dev.paired.length ? "Re-pair" : "Pair"}</button>
+      </div>`).join("");
+  } catch { $("#scanBtn").textContent="Scan for Apple TV"; msg("Server offline.", "err"); }
+}
+
+async function beginPair(id){
+  pairingId = id;
+  msg("Starting pairing…");
+  try {
+    const r = await fetch("/api/pair/begin", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ identifier:id })
+    });
+    const d = await r.json();
+    if (!d.ok) return msg(d.error, "err");
+    handlePairStep(d);
+  } catch { msg("Server offline.", "err"); }
+}
+
+function handlePairStep(d){
+  if (d.done){ msg("Paired successfully! You can close this.", "ok"); $("#pinBox").style.display="none"; scan(); return; }
+  $("#pinBox").style.display = "block";
+  $("#pinHint").textContent = `Pairing ${d.protocol}. Enter the 4-digit code shown on your Apple TV.`;
+  $("#pinInput").value = ""; $("#pinInput").focus();
+  msg("");
+}
+
+async function submitPin(){
+  const pin = $("#pinInput").value.trim();
+  if (pin.length < 4) return msg("Enter the 4-digit code.", "err");
+  msg("Verifying…");
+  try {
+    const r = await fetch("/api/pair/pin", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ pin })
+    });
+    const d = await r.json();
+    if (!d.ok) return msg(d.error, "err");
+    handlePairStep(d);
+  } catch { msg("Server offline.", "err"); }
+}
+</script>
+</body>
+</html>

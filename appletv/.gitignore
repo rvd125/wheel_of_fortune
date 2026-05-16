@@ -1,0 +1,4 @@
+appletv_creds.json
+venv/
+__pycache__/
+*.pyc
